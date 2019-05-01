@@ -1,0 +1,61 @@
+{
+	"name": "@monstermakes/larry-identity",
+	"description": " A user and authorization/authentication service based on auth0.",
+	"version": "0.0.1",
+	"publishConfig": {},
+	"bin": {},
+	"files": [],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/monstermakes/larry-identity"
+	},
+	"license": "MIT",
+	"scripts": {
+		"start": "npm run serve-dev",
+		"test": "echo '=> Verifying...' && npm run clean && npm run lint && npm run test-unit-coverage && npm run test-integration-coverage",
+		"readiness-check": "echo '=> Checking Readiness' && npm test",
+		"prepublishOnly": "echo '=> This is a terminal project and should not be published to npm! Exiting...' && exit 0",
+		"clean": "echo '=> Cleaning built assets...' && rm -rf .nyc_output coverage",
+		"lint": "echo '=> Linting...' && eslint {src,test}/**/*.js",
+		"lint-fix": "echo '=> Fixing Linting errors...' && eslint {src,test}/**/*.js --fix",
+		"serve-dev": "echo '=> Running app in Development mode...' && docker-compose -f src/docker/dev/docker-compose.yml up --build",
+		"serve": "echo '=> Running app in Production/CI mode...' && npm run build-docker-prod && export ApiImageTag=$(node -e 'console.log(`${process.env.npm_package_name}:${process.env.npm_package_version}`.slice(1));') && docker-compose -f src/docker/prod/docker-compose.yml up",
+		"serve-ci-detached": "echo '=> Running app in CI mode (detached)...' && npm run build-docker-prod && export ApiImageTag=$(node -e 'console.log(`${process.env.npm_package_name}:${process.env.npm_package_version}`.slice(1));') && docker-compose -f src/docker/ci/docker-compose.yml up -d && wget --retry-connrefused --tries=7 --spider 127.0.0.1:8080/health-check && echo '=> App now running in CI mode!'",
+		"stop-detached": "echo '=> Stopping Production app...' && export ApiImageTag=$(node -e 'console.log(`${process.env.npm_package_name}:${process.env.npm_package_version}`.slice(1));') && docker-compose -f src/docker/ci/docker-compose.yml down --rmi local",
+		"build-docker-prod": "docker build -f src/docker/prod/Dockerfile -t $(node -e 'console.log(`${process.env.npm_package_name}:${process.env.npm_package_version}`.slice(1));') .",
+		"build-artifacts": "echo '=> Building all artifacts...' && npm run build-docker-prod",
+		"test-integration-dev": "mocha -u tdd --timeout 60000 --colors test/integration/**/*.spec.js ",
+		"test-integration": "echo '=> Running Integration Tests...' && npm run serve-ci-detached && npm run test-integration-dev && npm run stop-detached",
+		"test-integration-coverage": "echo '=> Running Integration Tests w/ Coverage...' && npm run test-integration && sed -i '' 's/\"path\":\"\\/usr\\/src\\/app/\"path\":\"./g'  .nyc_output/*.json && nyc --reporter=html report && nyc --lines 80 --functions 80 --branches 80 --per-file check-coverage",
+		"test-unit": "echo '=> Running Tests...' && mocha -u tdd --timeout 60000 --colors test/unit/**/*.spec.js",
+		"watch-test-unit": "echo '=> Running Test Watcher...' && mocha --watch test/unit/**/*.spec.js",
+		"test-unit-coverage": "echo '=> Running Tests w/ Coverage...' && npx nyc npm run test-unit && nyc --reporter=html report && npx nyc --lines 80 --functions 80 --branches 80 --per-file check-coverage"
+	},
+	"dependencies": {
+		"@monstermakes/larry-logger": "^0.0.2",
+		"body-parser": "^1.18.3",
+		"cookie-parser": "^1.4.3",
+		"cors": "^2.8.5",
+		"express": "~4.16.0",
+		"express-openapi-validate": "^0.4.4",
+		"jwt-decode": "^2.2.0",
+		"lodash": "^4.17.11",
+		"node-glob": "^1.2.0",
+		"request": "^2.88.0",
+		"request-promise": "^4.2.2",
+		"swagger-jsdoc": "^3.2.5",
+		"swagger-ui-express": "^4.0.1",
+		"underscore.string": "^3.3.5"
+	},
+	"devDependencies": {
+		"@monstermakes/larry-infrastructure": "^0.0.1",
+		"chai": "^4.2.0",
+		"chai-as-promised": "^7.1.1",
+		"chai-files": "^1.4.0",
+		"eslint": "^5.13.0",
+		"mocha": "^5.2.0",
+		"nyc": "^13.2.0",
+		"chai-http": "^4.2.0",
+		"nodemon": "^1.18.5"
+	}
+}

@@ -1,0 +1,15 @@
+.vscode
+.history
+WORKING_DIRECTORY
+.github
+.nyc_output
+.cache
+.DS_Store
+.eslintrc.js
+.gitignore
+.npmrc
+buildspec.yml
+coverage
+test
+npm-debug.log
+package-lock.json

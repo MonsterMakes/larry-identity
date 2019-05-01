@@ -1,0 +1,59 @@
+#Expects AWS image aws/codebuild/nodejs:10.1.0
+version: 0.2
+env:
+  variables:
+    NPM_REGISTRY_URL: "https://registry.npmjs.org"
+    SOURCE_BRANCH: "master"
+  parameter-store:
+    SLACK_INCOMING_WEB_HOOK: "larry-infrastructure-slack-incoming-web-hook"
+    NPM_TOKEN: "larry-infrastructure-npm-token"
+    JIRA_USER: "larry-infrastructure-jira-user"
+    JIRA_PASS: "larry-infrastructure-jira-pass"
+    GIT_USER: "larry-infrastructure-git-user"
+    GIT_PASS: "larry-infrastructure-git-pass"
+phases:
+  install:
+    commands:
+      # install git
+      - echo => Setting up git credentials
+      - git config --global credential.helper 'store' && echo "https://${GIT_USER}:${GIT_PASS}@github.com" > ~/.git-credentials
+      # clone the repo
+      - echo => Setting up git credentials
+      - git clone https://github.com/monstermakes/larry-identity cloned-repo
+      - cd cloned-repo
+      - git checkout ${SOURCE_BRANCH}
+      # setup image:tag name for docker
+      - export DOCKER_IMAGE_TAG=$(node -e 'let pkg=require("./package.json");console.log(`${pkg.name}:${pkg.version}`.slice(1));')
+      # setup image:latest name for docker
+      - export DOCKER_IMAGE_LATEST=$(node -e 'let pkg=require("./package.json");console.log(`${pkg.name}:latest`.slice(1));')
+      # setup docker for use with aws ecr
+      - echo => Setting up ECR registry for docker images...
+      - export DOCKER_LOGIN_COMMAND="$(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)"
+      - export ECR_REGISTRY_URL=$(node -e 'let splitArr = process.env.DOCKER_LOGIN_COMMAND.split(" ");let ecrRegUrl = (splitArr[splitArr.length-1]).replace(/^https:\/\//,""); console.log(ecrRegUrl);')
+      - $DOCKER_LOGIN_COMMAND
+      # setup and install npm deps
+      - echo => Installing NPM Dependencies
+      - printf "//`node -p \"require('url').parse(process.env.NPM_REGISTRY_URL).host\"`/:_authToken=${NPM_TOKEN}\nregistry=${NPM_REGISTRY_URL}\n" >> ~/.npmrc
+      - npm install
+    finally:
+      - if [ $CODEBUILD_BUILD_SUCCEEDING -eq 0 ]; then npx larry slack post-build-failure; fi
+  #skipped if install, or pre_build fails
+  build:
+    commands:
+      - npm test
+      - echo => Tagging Docker Image...
+      - docker tag $DOCKER_IMAGE_TAG $ECR_REGISTRY_URL/$DOCKER_IMAGE_TAG
+      - echo => Pushing Docker Image...
+      - docker push $ECR_REGISTRY_URL/$DOCKER_IMAGE_TAG
+      - echo => Tagging Docker Image Latest...
+      - docker tag $DOCKER_IMAGE_TAG $ECR_REGISTRY_URL/$DOCKER_IMAGE_LATEST
+      - echo => Pushing Latest Docker Image...
+      - docker push $ECR_REGISTRY_URL/$DOCKER_IMAGE_LATEST
+      - echo => Updating associated JIRA Issues...
+      - npx larry jira move-issue deploy --git
+      - echo => Notifying team via slack...
+      - npx larry slack post-release --terminal
+  #skipped if install, or pre_build fails. This will run if build fails.
+  post_build:
+    finally:
+      - if [ $CODEBUILD_BUILD_SUCCEEDING -eq 0 ]; then npx larry slack post-build-failure; fi

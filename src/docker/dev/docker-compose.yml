@@ -1,0 +1,11 @@
+version: '3'
+services:
+  api:
+    container_name: dev-api
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    volumes: 
+      - ./../../../:/usr/src/app
+    ports:
+      - '8080:8080'
