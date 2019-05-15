@@ -1,6 +1,6 @@
 'use strict';
 
-const log = (require('./src/Logger')).getInstance();
+const log = (require('./Logger')).getInstance();
 const _ = require('lodash');
 const http = require('http');
 const Express =  require('express');
@@ -67,14 +67,6 @@ class ApiServer extends EventEmitter{
 	/* START PRIVATE METHODS */
 	/*************************************************************************************/
 	_initialize(){
-		//Need to change allowed origins as per our env setup
-		this._expressApp.use(cors({ origin: '*' }));
-		this._expressApp.use(Express.json());
-		this._expressApp.use(Express.urlencoded({ extended: false }));
-		this._expressApp.use(cookieParser());
-		this._expressApp.use(bodyParser.json());
-		this._expressApp.use(bodyParser.urlencoded({ extended: false }));
-		
 		//Load Injectables
 		this._loadInjectables();
 
@@ -100,7 +92,8 @@ class ApiServer extends EventEmitter{
 	}
 	_buildContextObject($context={}){
 		let builtContext = {
-			apiServer: this
+			apiServer: this,
+			log: log
 		};
 		Object.keys($context).forEach((contextName)=>{
 			if(contextName.toLowerCase() !== 'apiserver'){
@@ -131,7 +124,7 @@ class ApiServer extends EventEmitter{
 			this._status = status;
 		}
 		else{
-			throw new Error(`Unknown Status, cannot set the status of the Api Server (api) to ${status}`);
+			throw new Error(`Unknown Status, cannot set the status of the Api Server (larry-identity-api) to ${status}`);
 		}
 	}
 	_setupOpenApiDefinition(router,apiLocations){
@@ -154,12 +147,19 @@ class ApiServer extends EventEmitter{
 						url: 'http://www.auth.monstermakes.tech/license'
 					}
 				},
+				//TODO figure out a way to load these dynamically
+				security: {
+					openId: [
+						'read:things',
+						'write: things',
+						'delete: things'
+					]
+				},
 				components: {
 					securitySchemes: {
-						accessToken: {
-							type: 'apiKey',
-							in: 'header',
-							name: 'Authorization'
+						openId: {
+							type: 'openIdConnect',
+							openIdConnectUrl: '/.well-known/openid-configuration'
 						}
 					}
 				},
@@ -249,6 +249,62 @@ class ApiServer extends EventEmitter{
 
 		//Load each of the Middlewares
 		this._loadedMiddlewares = this._loadClasses(foundMiddlewareFilePaths);
+		//Load the seeded Middlewares
+		this._loadedMiddlewares.STANDARD = {
+			//Need to change allowed origins as per our env setup
+			cors: (requestHelper,responseHelper)=>{
+				return new Promise((resolve,reject)=>{
+					try{
+						(cors({ origin: '*' }))(requestHelper.rawRequest,responseHelper.rawResponse,()=>{
+							resolve();
+						});
+					}
+					catch(e){
+						reject(e);
+					}
+				});
+			},
+			json: (requestHelper,responseHelper)=>{
+				return new Promise((resolve,reject)=>{
+					try{
+						(Express.json())(requestHelper.rawRequest,responseHelper.rawResponse,()=>{
+							(bodyParser.json())(requestHelper.rawRequest,responseHelper.rawResponse,()=>{
+								resolve();
+							});
+						});
+					}
+					catch(e){
+						reject(e);
+					}
+				});
+			},
+			url: (requestHelper,responseHelper)=>{
+				return new Promise((resolve,reject)=>{
+					try{
+						(Express.urlencoded({ extended: false }))(requestHelper.rawRequest,responseHelper.rawResponse,()=>{
+							(bodyParser.urlencoded({ extended: false }))(requestHelper.rawRequest,responseHelper.rawResponse,()=>{
+								resolve();
+							});
+						});
+					}
+					catch(e){
+						reject(e);
+					}
+				});
+			},
+			cookie: (requestHelper,responseHelper)=>{
+				return new Promise((resolve,reject)=>{
+					try{
+						(cookieParser())(requestHelper.rawRequest,responseHelper.rawResponse,()=>{
+							resolve();
+						});
+					}
+					catch(e){
+						reject(e);
+					}
+				});
+			}
+		};	
 	}
 	_loadServices(){
 		let globPatterns = [ __dirname+'/**/*.service.js' ];
@@ -322,31 +378,37 @@ class ApiServer extends EventEmitter{
 											let promChain = Promise.resolve();
 											//loop through all the middlewares specified
 											methodDefinition.serviceMiddlewares.forEach((middlewareName)=>{
-												if(!_.hasIn(this,`_loadedMiddlewares.${middlewareName}`)){
-													throw new Error(`${method.toUpperCase()} ${path} was defined in the Open API Definition but we could not find a loaded middleware using middleware property ${middlewareName}.`);
-												}
-												else{
-													//get the middlewares class name and method name
-													let serviceMiddlewareParts = middlewareName.split('.');
-													if(serviceMiddlewareParts.length !== 2){
-														throw new Error(`${method.toUpperCase()} ${path} was defined in the Open API Definition but the serviceMiddlewares property is not of the format <MiddlewareClassName>.<MiddlewareMethod> (${middlewareName}).`);
-													}
-													else{
+												promChain = promChain
+													.then(()=>{
+														if(!_.hasIn(this,`_loadedMiddlewares.${middlewareName}`)){
+															return Promise.reject(new Error(`${method.toUpperCase()} ${path} was defined in the Open API Definition but we could not find a loaded middleware using middleware property ${middlewareName}.`));
+														}
+													})
+													.then(()=>{
+														//get the middlewares class name and method name
+														let serviceMiddlewareParts = middlewareName.split('.');
+														if(serviceMiddlewareParts.length !== 2){
+															return Promise.reject(new Error(`${method.toUpperCase()} ${path} was defined in the Open API Definition but the serviceMiddlewares property is not of the format <MiddlewareClassName>.<MiddlewareMethod> (${middlewareName}).`));
+														}
+														else{
+															return serviceMiddlewareParts;
+														}
+													})
+													.then((serviceMiddlewareParts)=>{
 														let serviceMiddlewareClassName = serviceMiddlewareParts[0];
 														let serviceMiddlewareMethodName = serviceMiddlewareParts[1];
-														//append middleware to the promise chain
-														promChain = promChain
-															.then(()=>{
-																return this._loadedMiddlewares[serviceMiddlewareClassName][serviceMiddlewareMethodName](requestHelper,responseHelper);
-															})
-															.catch((e)=>{
-																log.error({error:e},`Api Server (api) failed to execute middleware (${middlewareName}).`);
-																//pass the error along.
-																return Promise.reject(e);
-															});
-													}
-												}
+														//If one of the middleware's didnt already handle the request, call the middleware
+														if(!res.headersSent){
+															return this._loadedMiddlewares[serviceMiddlewareClassName][serviceMiddlewareMethodName](requestHelper,responseHelper,methodDefinition);
+														}
+													})
+													.catch((e)=>{
+														log.error({error:e},`Api Server (larry-identity-api) failed to execute middleware (${middlewareName}).`);
+														//pass the error along.
+														return Promise.reject(e);
+													});
 											});
+											//After all middlewares have executed
 											promChain
 												.then(()=>{
 													//If one of the middleware's didnt already handle the request, call the serviceMethod
@@ -513,7 +575,7 @@ class ApiServer extends EventEmitter{
 							this._setStatus(this.STATUS_STATES.CONNECTED);
 						})
 						.catch((e)=>{
-							log.error({error:e},`Api Server (api) failed to startup`);
+							log.error({error:e},`Api Server (larry-identity-api) failed to startup`);
 							this._setStatus(this.STATUS_STATES.START_FAILED);
 							return Promise.reject(e);
 						});
@@ -533,7 +595,7 @@ class ApiServer extends EventEmitter{
 				default:
 					this._setStatus(this.STATUS_STATES.SHUTTING_DOWN);
 					if(err){
-						log.error({error:err},`Api Server (api) encountered a failure scenario and is being shutdown...`);
+						log.error({error:err},`Api Server (larry-identity-api) encountered a failure scenario and is being shutdown...`);
 					}
 					this._shuttingdownProm = Promise.resolve()
 						.then(()=>{
@@ -554,12 +616,12 @@ class ApiServer extends EventEmitter{
 							return this._shutdownInjectables();
 						})
 						.catch((e)=>{
-							log.error({error:e},`Api Server (api) failed to shutdown, please make sure things do not need atttending...`);
+							log.error({error:e},`Api Server (larry-identity-api) failed to shutdown, please make sure things do not need atttending...`);
 							this._setStatus(this.STATUS_STATES.SHUTDOWN_FAILED);
 						})
 						//FINALLY
 						.then(()=>{
-							log.info(`Api Server (api) exiting...`);//eslint-disable-line
+							log.info(`Api Server (larry-identity-api) exiting...`);//eslint-disable-line
 							if(!exitCode){	
 								if(err){
 									this.emit('ShutdownComplete',1);
@@ -588,15 +650,15 @@ class ApiServer extends EventEmitter{
 		if (error && error.syscall === 'listen') {
 			switch (error.code) {
 			case 'EACCES':
-				log.error(`Api Server (api) on Address: requires elevated privileges.`);
+				log.error(`Api Server (larry-identity-api) on Address: requires elevated privileges.`);
 				this.shutdown(error,1);
 				break;
 			case 'EADDRINUSE':
-				log.error(`Api Server (api) on Address: cannot start port is already in use.`);
+				log.error(`Api Server (larry-identity-api) on Address: cannot start port is already in use.`);
 				this.shutdown(error,1);
 				break;
 			default:
-				log.error({error:error},`Api Server (api) internal http server encountered an error.`);
+				log.error({error:error},`Api Server (larry-identity-api) internal http server encountered an error.`);
 				this.shutdown(error,1);
 				throw error;
 			}
@@ -608,7 +670,7 @@ class ApiServer extends EventEmitter{
 	_onListening(){
 		const addressInfo = this._server.address();
 		this._setStatus(this.STATUS_STATES.LISTENING);
-		log.info(`Api Server (api) listening on Address: ${addressInfo.address} and port : ${addressInfo.port}`);
+		log.info(`Api Server (larry-identity-api) listening on Address: ${addressInfo.address} and port : ${addressInfo.port}`);
 	}
 	/*************************************************************************************/
 	/* END HTTP SERVER HANDLER METHODS */
