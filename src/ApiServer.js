@@ -67,6 +67,15 @@ class ApiServer extends EventEmitter{
 	/* START PRIVATE METHODS */
 	/*************************************************************************************/
 	_initialize(){
+		// optionally setup cors api wide
+		if(_.has(this._options,'cors')){
+			let corsOptions = { origin: '*' };
+			if(_.isPlainObject(this._options.cors)){
+				corsOptions = this._options.cors;
+			}
+			this._expressApp.use(cors(corsOptions));
+		}
+		
 		//Load Injectables
 		this._loadInjectables();
 

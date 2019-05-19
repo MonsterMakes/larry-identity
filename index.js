@@ -26,7 +26,9 @@ process.on('uncaughtException', (err) => {
 /*************************************************************************************/
 //If this is the first time go ahead and create the symbol.
 if (globalSymbols.indexOf(SINGLETON_KEY) === -1){
-	globalSpace[SINGLETON_KEY] = new ApiServer();
+	globalSpace[SINGLETON_KEY] = new ApiServer({
+		cors: true
+	});
 	globalSpace[SINGLETON_KEY].on('ShutdownComplete',(exitCode)=>{
 		log.error(`Api Server (larry-identity-api) exiting shutting down with exitCode (${exitCode})...`);
 		process.exit(exitCode);

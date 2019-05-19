@@ -103,13 +103,7 @@ class Auth {
 		queryParams.connection = null; // force redirection to autho login (dont go to social identity providers)
 		//TODO AUTH0_DEFAULT_CONNECTION should we use it?
 		
-		// wrap the clients state and redirect_uri into the state object
-		let wrappedState = {
-			state: queryParams.state || null,
-			redirectUri: queryParams.redirect_uri
-		};
-		queryParams.state = JSON.stringify(wrappedState);
-		queryParams.redirect_uri = `${this._apiBaseUri}callback`;
+		queryParams.state = queryParams.state || '';
 
 		// If the client is requesting Authorization code grant using PKCE set the default challenge method
 		if(queryParams.hasOwnProperty('code_challenge') && !queryParams.hasOwnProperty('code_challenge_method')){
@@ -380,7 +374,7 @@ class Auth {
 	 *                 type: string
 	 *     responses:
 	 *       200:
-	 *         description: Redirects the user to the appropriate Authorization Server.
+	 *         description: Provides a set of tokens from the Authorization Server.
 	 *         content:
 	 *           application/json:
 	 *             schema:
