@@ -2,8 +2,6 @@
 const queryStringUtils = require('querystring');
 const urlUtils = require('url');
 const request = require('request');
-const handlebars = require('handlebars');
-const fs = require('fs');
 const _ = require('lodash');
 
 /***********************************************************************************************/
@@ -18,6 +16,7 @@ const _ = require('lodash');
 /* API_URI => This is the external URI to this API           							       */
 /***********************************************************************************************/
 /***********************************************************************************************/
+
 //const OIDC_SCOPE_WITH_REFRESH = 'offline_access openid profile email';
 const OIDC_SCOPE = 'openid profile email';
 class Auth {
@@ -110,10 +109,6 @@ class Auth {
 			queryParams.code_challenge_method = 'S256';
 		}
 
-		//Make the call to Auth0 /authorize endpoint
-		let queryString = queryStringUtils.stringify(queryParams);
-		requestHelper.rawRequest.url = `${this._auth0BaseUri}authorize?${queryString}`;
-
 		this._log.trace({
 			queryParams,
 			url: requestHelper.rawRequest.url,
@@ -123,6 +118,7 @@ class Auth {
 		
 		return this.authorize(requestHelper,responseHelper);
 	}
+
 	/**
 	 * @swagger
 	 * /logout:
@@ -130,121 +126,27 @@ class Auth {
 	 *     serviceMethod: Auth.logout
 	 *     description: Use this endpoint to logout the user from the Authorization Server. 
 	 *     tags: [auth]
+	 *     parameters:
+	 *       - in: query
+	 *         name: returnTo
+	 *         description: The URL to which the requestor will be redirected after logout has completed.
+	 *         required: true
+	 *         schema:
+	 *           type: string
 	 *     responses:
 	 *       302:
-	 *         description: Redirects the user to the logged-out callback endpoint.
+	 *         description: Redirects the user to the logged-out callback "returnTo".
 	 */
 	logout(requestHelper,responseHelper){
 		//override some settings
 		let queryParams = requestHelper.rawRequest.query;
 		queryParams.client_id = this._auth0ClientId;
-		queryParams.returnTo = `${this._apiBaseUri}logged-out`;
 		queryParams.federated = true;
 
 		//Make the call to Auth0 /logout endpoint
 		let queryString = queryStringUtils.stringify(requestHelper.rawRequest.query);
 		let requestUrl = `${this._auth0BaseUri}v2/logout?${queryString}`;
 		responseHelper.redirect(requestUrl);
-	}
-	/**
-	 * @swagger
-	 * /logged-out:
-	 *   get:
-	 *     serviceMethod: Auth.loggedOut
-	 *     description: Logs the current user out of the Authorization Server.
-	 *     tags: [auth]
-	 *     produces:
-	 *       - text/html
-	 *     responses:
-	 *       200:
-	 *         description: User has been successfully logged out of the Authorization Server.
-	 */
-	loggedOut(requestHelper,responseHelper){//eslint-disable-line
-		return new Promise((resolve,reject)=>{//eslint-disable-line
-			let path = `${__dirname}/pages/LoggedOut.html`;
-			fs.readFile(path, 'utf-8', (error, source)=>{
-				let tmpltVars = {
-					loginUrl: `${this._apiBaseUri}login`
-				};
-				if(error){
-					this._log.error({path},`Failed to read LoggedOut.html, using default instead.`);
-					//create raw html just in case the file is missing
-					source=`<h1>You've been logged out successfully/h1>`;
-				}
-				let tmplt = handlebars.compile(source);
-				let htmlResponse = tmplt(tmpltVars);
-				responseHelper.send(htmlResponse,200);
-				resolve();
-			});
-		});
-	}
-	/**
-	 * @swagger
-	 * /callback:
-	 *   get:
-	 *     serviceMethod: Auth.callback
-	 *     description: Login and authorization flow has completed sucessfully or with errors.
-	 *     tags: [auth]
-	 *     produces:
-	 *       - text/html
-	 *     responses:
-	 *       302:
-	 *         description: Attempts to exchange the code for a token with the Authorization Server, if success user will be redirected.
-	 *       4038:
-	 *         description: If anything goes wrong an error page will be displayed to the user.
-	 *         content: 
-	 *           text/html:
-	 *             schema:
-	 *               type: string
-	 */
-	callback(requestHelper,responseHelper){//eslint-disable-line
-		return new Promise((resolve,reject)=>{//eslint-disable-line
-			let errorTitle = requestHelper.queryParams.error;
-			//This most commonly will be caused by failed auth0 rules
-			if(errorTitle){
-				let path = `${__dirname}/pages/GenericError.html`;
-				fs.readFile(path, 'utf-8', (error, source)=>{
-					let errorDescription = requestHelper.queryParams.error_description;
-					let tmpltVars = {
-						errorTitle,
-						errorDescription,
-						loginUrl: `${this._apiBaseUri}login`
-					};
-					if(error){
-						this._log.error({path,error,errorDescription},`Failed to read GenericError.html, using default instead.`);
-						//create raw html just in case the file is missing
-						source=`<h1>${tmpltVars.errorTitle}</h1>
-						<p>${tmpltVars.errorDescription}</p>
-						<p>Try to <a href="${tmpltVars.loginUrl}">login</a> again, if the problem persists please contact support.</p>`;
-					}
-					else{
-						this._log.error({error,errorDescription},`Received unknown error in the auth callback process.`);
-					}
-					let tmplt = handlebars.compile(source);
-					let htmlResponse = tmplt(tmpltVars);
-					responseHelper.send(htmlResponse,403);
-					resolve();
-				});
-			}
-			else{
-				try{
-					let wrappedState = JSON.parse(requestHelper.queryParams.state);
-					if(wrappedState.redirectUri){
-						let redirectPath = new urlUtils.URL(wrappedState.redirectUri);
-						redirectPath.searchParams.set('state',wrappedState.state);
-						redirectPath.searchParams.set('code',requestHelper.queryParams.code);
-						responseHelper.redirect(redirectPath);
-					}
-					else{
-						resolve(requestHelper.toJSON());
-					}
-				}
-				catch(e){
-					//TODO
-					reject(e);
-				}
-			}
-		});
 	}
 	/*********************************************************************************/
 	/*********************************************************************************/
