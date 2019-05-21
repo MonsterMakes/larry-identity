@@ -54,7 +54,7 @@ class AuthorizationMiddleware {
 			let allowed = true;
 			if (requiredScopes.length !== 0) {
 	
-				let scopeKey = 'scope';
+				let scopeKey = 'permissions';
 				
 				if (!rawRequest.user) {
 					res.forbidden('JWT Token missing.',requiredScopes);
@@ -76,6 +76,9 @@ class AuthorizationMiddleware {
 						res.forbidden('Insufficient authorization.',requiredScopes);
 					}
 				}
+			}
+			else{
+				resolve();
 			}
 		});
 	

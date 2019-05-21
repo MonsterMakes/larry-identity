@@ -29,6 +29,8 @@ A user and authorization/authentication service based on auth0.
 * AUDIENCE
 	* This is the OIDC audience (aud claim) 
 		* The unique identifier of the AUTH0 API
+* AUTH0_ROLE_CLAIM
+	* This is the name of the custom claim that contains the user's roles
 
 ### Set environment shell template
 ```
@@ -40,6 +42,7 @@ export AUTH0_CLIENT_ID={{CHANGE_ME}};
 export AUTH0_CLIENT_SECRET={{CHANGE_ME}};
 export API_URI={{CHANGE_ME}};
 export AUTH0_DEFAULT_CONNECTION={{CHANGE_ME}};
+export AUTH0_ROLE_CLAIM={{CHANGE_ME}};
 ```
 
 ## Remote debugging the dev docker container
