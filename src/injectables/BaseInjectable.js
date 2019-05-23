@@ -1,5 +1,5 @@
 'use strict';
-const log = (require('./src/Logger')).getInstance();
+const log = (require('../Logger')).getInstance();
 const _ = require('lodash');
 //load underscore string library
 _.mixin(require('underscore.string').exports());

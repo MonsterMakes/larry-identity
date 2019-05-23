@@ -24,18 +24,25 @@ class ResponseHelper {
 	/* START PUBLIC METHODS */
 	/*********************************************************************/
 	/**
-	 * Responds with a 301 status code
+	 * Responds with a 302 status code
 	 * @param {string} uri - this is a complete url to an external location or the path portion of the uri for internal reditects.
 	 */
 	redirect(uri){
-		this.rawResponse.redirect(301,uri);
+		this.rawResponse.redirect(302,uri);
+	}
+	/**
+	 * Responds with a 302 status code
+	 * @param {string} uri - this is a complete url to an external location or the path portion of the uri for internal reditects.
+	 */
+	found(uri){
+		return this.redirect(uri);
 	}
 	/**
 	 * Responds with a 301 status code
 	 * @param {string} uri - this is a complete url to an external location or the path portion of the uri for internal reditects.
 	 */
 	movedPermanently(uri){
-		return this.redirect(uri);
+		return this.redirect(301,uri);
 	}
 	/**
 	 * Responds with a 308 status code
@@ -76,19 +83,40 @@ class ResponseHelper {
 	}
 	/**
 	 * Used to provide json error responsess
-	 * @param {Error} error - The Javascript Error that caused the issue. This will set the errorCode property to JsError, errorMsg property to error.message and if error.stackTrace is found the stackTrace property will be set.
+	 * @param {Error| string} error - The Javascript Error that caused the issue. This will set the errorCode property, errorMsg property and additional error properties
 	 * @param {object} [additionalProps] - An optional object to be serialized in the response for further context/error information, all properties will be flattened into the response object.
 	 * @param {integer} [httpResponseStatusCode=400] - An optional http response code to be used instead of 400.
 	 */
 	respondWithError(error=undefined, additionalProps={}, httpResponseStatusCode=400){
 		let errorMsg = 'An unknown error was encountered.';
+		let errorCode = 'ThrownError';
+		let errorDetails = {};
+		//plain string messages are allowed
 		if(_.isString(error)){
 			errorMsg = error;
 		}
-		else if(_.has(error,'message')){
-			errorMsg = error.message;
+		else {
+			//determine errorMsg
+			if(_.has('errorMsg')){
+				errorMsg = error.errorMsg;
+			}
+			else if(_.has(error,'message')){
+				errorMsg = error.message;
+			}
+			//determine errorCode
+			if(_.has(error,'errorCode')){
+				errorCode = error.errorCode;
+			}
+			//determine additional error details
+			if(_.has(error,'errorDetails')){
+				errorDetails = _.merge({},additionalProps,error.errorDetails);
+			}
+			//If a stack trace is provided add it to the errorDetails
+			if(_.has(error,'stack')){
+				errorDetails.stackTrace = error.stack;
+			}
 		}
-		return this.respondWithErrorDetails('ThrownError', errorMsg, additionalProps, httpResponseStatusCode);
+		return this.respondWithErrorDetails(errorCode, errorMsg, errorDetails, httpResponseStatusCode);
 	}
 	/**
 	 * Used to provide json error responsess
@@ -135,15 +163,17 @@ class ResponseHelper {
 	}
 	//401
 	unauthorized(errorMsg){
-		return this.respondWithErrorDetails(undefined,errorMsg,undefined,401);
+		this.rawResponse.set('WWW-Authenticate','Bearer');
+		return this.respondWithErrorDetails(401,errorMsg,undefined,401);
 	}
 	//403
-	forbidden(errorMsg){
-		return this.respondWithErrorDetails(undefined,errorMsg,undefined,403);
+	forbidden(errorMsg,requiredScopes=[]){
+		this.rawResponse.set('WWW-Authenticate',`Bearer scope="${requiredScopes.join(' ')}", error="${errorMsg}"`);
+		return this.respondWithErrorDetails(403,errorMsg,undefined,403);
 	}
 	//404
 	notFound(errorMsg='Not Found'){
-		return this.respondWithErrorDetails(undefined,errorMsg,undefined,404);
+		return this.respondWithErrorDetails(404,errorMsg,undefined,404);
 	}
 	//500
 	internalServerError(error){

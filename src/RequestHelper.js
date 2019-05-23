@@ -7,7 +7,8 @@ class RequestHelper {
 		this._request = req;
 		//Unfortunately the Express framework mutates their request object so this member cannot be frozen.
 		//Object.freeze(this._response);
-	}/*********************************************************************/
+	}
+	/*********************************************************************/
 	/* START IMUTTABLE PROPERTIES & GETTERS */
 	/*********************************************************************/
 	get rawRequest(){

@@ -1,7 +1,7 @@
 version: '3'
 services:
-  api:
-    container_name: dev-api
+  larry-identity-api:
+    container_name: dev-larry-identity-api
     build:
       context: ./
       dockerfile: Dockerfile
@@ -9,3 +9,12 @@ services:
       - ./../../../:/usr/src/app
     ports:
       - '8080:8080'
+      - '9229:9229'
+    environment:
+      - API_URI=${API_URI}
+      - AUTH0_DOMAIN=${AUTH0_DOMAIN}
+      - AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID}
+      - AUTH0_CLIENT_SECRET=${AUTH0_CLIENT_SECRET}
+      - JWKS_URI=${JWKS_URI}
+      - ISSUER=${ISSUER}
+      - AUDIENCE=${AUDIENCE}
