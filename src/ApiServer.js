@@ -138,6 +138,18 @@ class ApiServer extends EventEmitter{
 	}
 	_setupOpenApiDefinition(router,apiLocations){
 		let pkg = require('../package.json');
+		let scopes = [];
+		try{
+			scopes = require('../OIDC.scopes');
+		}
+		catch(e){
+			try{
+				scopes = require('../OIDC.scopes.json');
+			}
+			catch(jsonErr){
+				log.warn({loadJsError:e, loadJsonError:jsonErr},'This service has not defined any OIDC scopes. Make sure to include all of this servers required scopes in a OIDC_Scopes.js or OIDC_Scopes.json file in the root of this project.');
+			}
+		}
 		const options = {
 			swaggerDefinition: {
 				openapi: '3.0.0',
@@ -156,17 +168,14 @@ class ApiServer extends EventEmitter{
 						url: 'http://www.auth.monstermakes.tech/license'
 					}
 				},
-				//TODO figure out a way to load these dynamically
-				security: {
-					openId: [
-						'read:things',
-						'write: things',
-						'delete: things'
-					]
-				},
+				security: [
+					{openIdConnect: scopes}
+				],
 				components: {
 					securitySchemes: {
-						openId: {
+						openIdConnect: {
+							// TODO currently open bug in swagger ui, this needs to be resolved in order to use swagger ui
+							// https://github.com/swagger-api/swagger-ui/issues/3517
 							type: 'openIdConnect',
 							openIdConnectUrl: '/.well-known/openid-configuration'
 						}

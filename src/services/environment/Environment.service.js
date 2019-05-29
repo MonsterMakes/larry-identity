@@ -37,7 +37,8 @@ class Environment {
 			uam: {
 				apiUrl: process.env['API_URI'],
 				clientId: process.env['AUTH0_CLIENT_ID'],
-				roleClaim: process.env['AUTH0_ROLE_CLAIM']
+				roleClaim: process.env['AUTH0_ROLE_CLAIM'],
+				activeAccountIdClaim: process.env['AUTH0_ACTIVE_ACCOUNT_ID_CLAIM']
 			}
 		};
 	}

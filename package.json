@@ -1,7 +1,7 @@
 {
 	"name": "@monstermakes/larry-identity",
 	"description": "A user and authorization/authentication service based on auth0.",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"publishConfig": {},
 	"bin": {},
 	"files": [],
@@ -32,13 +32,15 @@
 		"test-unit-coverage": "echo '=> Running Tests w/ Coverage...' && npx nyc npm run test-unit && nyc --reporter=html report && npx nyc --lines 80 --functions 80 --branches 80 --per-file check-coverage"
 	},
 	"dependencies": {
-		"@monstermakes/larry-logger": "^0.0.2",
+		"@monstermakes/larry-logger": "*",
+		"@monstermakes/larry-cli": "*",
 		"body-parser": "^1.18.3",
 		"cookie-parser": "^1.4.3",
 		"cors": "^2.8.5",
 		"express": "~4.16.0",
 		"express-jwt": "^5.3.1",
 		"express-openapi-validate": "^0.4.4",
+		"handlebars": "^4.1.2",
 		"jwks-rsa": "^1.4.0",
 		"lodash": "^4.17.11",
 		"request": "^2.88.0",
