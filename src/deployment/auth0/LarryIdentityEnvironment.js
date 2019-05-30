@@ -177,9 +177,14 @@ class LarryIdentityEnvironment {
 				connectionDetails = connectionResponse;
 				return this.verifyRoles(apiDetails.identifier);
 			})
-			.then((roleDetails) => {
-				console.info('All the produced things for your records.',{rolesRuleDetails, apiDetails, clientDetails, roleDetails, connectionDetails});
-			});
+			.then((roleResponse) => {
+				roleDetails = roleResponse;
+			})
+			.then((roleResponse) => {
+				let allTheThangs = {rolesRuleDetails, apiDetails, clientDetails, roleDetails, connectionDetails};
+				console.info('All the produced things for your records.',allTheThangs);
+				return allTheThangs;
+			})
 		// .then(()=>{
 		// 	//ADD the seeded user
 		// })
@@ -332,6 +337,9 @@ let identityEnv = new LarryIdentityEnvironment({
 });
 
 identityEnv.deploy()
+	.then(results=>{
+		console.info('results',results);
+	})
 	.catch(e=>{
 		console.error(e);
 	});

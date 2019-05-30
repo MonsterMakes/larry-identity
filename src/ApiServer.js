@@ -169,7 +169,8 @@ class ApiServer extends EventEmitter{
 					}
 				},
 				security: [
-					{openIdConnect: scopes}
+					{openIdConnect: scopes},
+					{accessToken: []}
 				],
 				components: {
 					securitySchemes: {
@@ -178,6 +179,12 @@ class ApiServer extends EventEmitter{
 							// https://github.com/swagger-api/swagger-ui/issues/3517
 							type: 'openIdConnect',
 							openIdConnectUrl: '/.well-known/openid-configuration'
+						},
+						// until the above is fixed we will add this workaround
+						accessToken: {
+							type: 'apiKey',
+							in: 'header',
+							name: 'Authorization'
 						}
 					}
 				},

@@ -12,9 +12,6 @@ module.exports = {
 		scopes: {
 			include: {
 				ALL: true
-			},
-			exclude:{
-				things: true
 			}
 		}
 	},
@@ -25,10 +22,6 @@ module.exports = {
 				ALL: true
 			},
 			exclude:{
-				things: {
-					read: true,
-					write: true
-				},
 				account: {
 					write: true
 				}
@@ -39,12 +32,7 @@ module.exports = {
 		description: 'Operator Role',
 		scopes: {
 			include: {
-				user: {
-					read: true
-				},
-				account: {
-					read: true
-				}
+				read: true
 			}
 		}
 	},
