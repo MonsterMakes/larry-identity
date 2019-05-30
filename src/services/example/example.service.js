@@ -11,8 +11,6 @@ class Example {
 	 *     serviceMethod: Example.public
 	 *     description: Public endpoint to check the current health of the application.
 	 *     tags: [example]
-	 *     produces:
-	 *       - application/json
 	 *     responses:
 	 *       200:
 	 *         description: Server is alive, and here is the current application status.
@@ -48,8 +46,6 @@ class Example {
 	 *       - AuthorizationMiddleware.authorizeAccessToken
 	 *     description: Private endpoint with no required scopes to check the current health of the application.
 	 *     tags: [example]
-	 *     produces:
-	 *       - application/json
 	 *     responses:
 	 *       200:
 	 *         description: Server is alive, and here is the current application status.
@@ -83,12 +79,11 @@ class Example {
 	 *     serviceMiddlewares: 
 	 *       - AuthorizationMiddleware.validateAccessToken
 	 *       - AuthorizationMiddleware.authorizeAccessToken
-	 *     requiredScopes:
-	 *       - read:things
+	 *     security:
+	 *       - openIdConnect:
+	 *         - r:things
 	 *     description: Private endpoint with no required scopes to check the current health of the application.
 	 *     tags: [example]
-	 *     produces:
-	 *       - application/json
 	 *     responses:
 	 *       200:
 	 *         description: Server is alive, and here is the current application status.

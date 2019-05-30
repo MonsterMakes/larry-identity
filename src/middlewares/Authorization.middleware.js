@@ -47,8 +47,18 @@ class AuthorizationMiddleware {
 	authorizeAccessToken(req, res, methodDefinition) {
 		let rawRequest = req.rawRequest;
 		let requiredScopes = [];
-		if (_.has(methodDefinition, 'requiredScopes')) {
-			requiredScopes = methodDefinition.requiredScopes;
+		if(_.has(methodDefinition,'security')) {
+			let oidcSecurity = methodDefinition.security.find((secScheme)=>{
+				if(secScheme.hasOwnProperty('openIdConnect')){
+					return true;
+				}
+				else{
+					return false;
+				}
+			});
+			if(oidcSecurity){
+				requiredScopes = oidcSecurity.openIdConnect;
+			}
 		}
 		return new Promise((resolve, reject) => { //eslint-disable-line
 			let allowed = true;

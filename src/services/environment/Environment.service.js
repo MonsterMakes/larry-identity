@@ -11,8 +11,6 @@ class Environment {
 	 *     serviceMethod: Environment.details
 	 *     description: Check the current health of the application.
 	 *     tags: [health]
-	 *     produces:
-	 *       - application/json
 	 *     responses:
 	 *       200:
 	 *         description: Server is alive, and here is the current application status.
@@ -30,6 +28,8 @@ class Environment {
 	 *                 clientId:
 	 *                   type: string
 	 *                 roleClaim:
+	 *                   type: string
+	 *                 activeAccountIdClaim:
 	 *                   type: string
 	 */
 	details(requestHelper,responseHelper){//eslint-disable-line

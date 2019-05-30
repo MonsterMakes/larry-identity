@@ -18,6 +18,8 @@ services:
       - JWKS_URI=${JWKS_URI}
       - ISSUER=${ISSUER}
       - AUDIENCE=${AUDIENCE}
+      - AUTH0_ROLE_CLAIM=${AUTH0_ROLE_CLAIM}
+      - activeAccountIdClaim=${activeAccountIdClaim}
 networks:
   api-network:
       driver: bridge
